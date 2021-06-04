@@ -11,7 +11,8 @@ CREATE TABLE USER (
     id int PRIMARY KEY NOT NULL,
     username varchar(100) NOT NULL,
     password varchar(100) NOT NULL,
-    description varchar(225)
+    description varchar(225),
+    CONSTRAINT UC_Username UNIQUE (username)
 );
 
 CREATE TABLE USER_TOKEN (

@@ -1,6 +1,7 @@
 package com.example.service;
 
 import com.example.BusinessException;
+import com.example.dto.UserDetailsModel;
 import com.example.dto.UserModel;
 import com.example.entity.User;
 import com.example.entity.UserToken;
@@ -32,13 +33,13 @@ public class UserDetailsService {
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     public String login(final UserModel user) {
-        //TODO find by password also
-        final Optional<User> userOptional = userRepository.findByUsername(user.getUsername());
-        if (userOptional.isEmpty()) {
+        final User userDb = userRepository.findByUsername(user.getUsername())
+                .orElseThrow(() -> new BusinessException("This user is not registered"));
+
+        if (!bCryptPasswordEncoder.matches(user.getPassword(), userDb.getPassword())) {
             throw new BusinessException("This user is not registered");
         }
 
-        final User userDb = userOptional.get();
         final Optional<UserToken> userToken = userTokenRepository.findTopByUserIdOrderByIdDesc(userDb.getId());
 
         if (userToken.isEmpty()) {
@@ -48,20 +49,10 @@ public class UserDetailsService {
         final UserToken topToken = userToken.get();
 
         if (topToken.getActive()) {
-            throw new BusinessException("User aleardy logged in");
+            throw new BusinessException("User already logged in");
         }
 
-        return getUserToken(userDb);
-    }
-
-    private String getUserToken(final User user) {
-        final Optional<UserToken> userToken = userTokenRepository.findTopByUserIdOrderByIdDesc(user.getId());
-
-        if (userToken.isPresent() && userToken.get().getActive()) {
-            throw new BusinessException("User aleardy logged in");
-        }
-
-        return newToken(user).getUuid();
+        return newToken(userDb).getUuid();
     }
 
     private UserToken newToken(final User user) {
@@ -72,6 +63,10 @@ public class UserDetailsService {
         return userTokenRepository.save(newToken);
     }
 
+    private String encodePassword(final String password) {
+        return bCryptPasswordEncoder.encode(password);
+    }
+
     public Long register(final UserModel user) {
         final Optional<User> userOptional = userRepository.findByUsername(user.getUsername());
         if (userOptional.isPresent()) {
@@ -80,7 +75,7 @@ public class UserDetailsService {
 
         User newUser = new User();
         newUser.setUsername(user.getUsername());
-        newUser.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
+        newUser.setPassword(encodePassword(user.getPassword()));
         newUser.setDescription(user.getDescription());
 
         return userRepository.save(newUser).getId();
@@ -88,6 +83,7 @@ public class UserDetailsService {
 
     public void logout(final String token) {
         Optional<UserToken> userToken = userTokenRepository.findByUuid(token);
+
         if (userToken.isEmpty() || !userToken.get().getActive()) {
             throw new BusinessException("Invalid token to logout");
         }
@@ -99,22 +95,16 @@ public class UserDetailsService {
         userTokenRepository.save(userTokenToInvalidate);
     }
 
-    public User getUser(final Long id) {
-        Optional<User> user = userRepository.findById(id);
-
-        if (user.isEmpty()) {
-            throw new BusinessException("No such user");
-        }
-        return user.get();
+    public UserDetailsModel getUser(final Long id) {
+        final User user = userRepository.findById(id).orElseThrow(() -> new BusinessException("No such user"));
+        return new UserDetailsModel(user.getId(), user.getUsername(), user.getDescription());
     }
 
     public UserDetails getUserByToken(final String token) {
-        Optional<UserToken> userToken = userTokenRepository.findByUuid(token);
-        if (userToken.isEmpty()) {
-            throw new BusinessException("Invalid token");
-        }
+        User userDb = userTokenRepository.findByUuid(token)
+                .filter(userToken -> userToken.getActive())
+                .map(UserToken::getUser).orElseThrow(() -> new BusinessException("Invalid token"));
 
-        User userDb = userToken.get().getUser();
         return new org.springframework.security.core.userdetails.User(userDb.getUsername(), userDb.getPassword(),
                 true, true, true, true, AuthorityUtils.createAuthorityList("USER"));
     }

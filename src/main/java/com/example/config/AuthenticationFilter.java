@@ -38,7 +38,7 @@ public class AuthenticationFilter extends AbstractAuthenticationProcessingFilter
                                                 HttpServletResponse httpServletResponse) throws AuthenticationException, IOException, ServletException {
 
         try {
-            String authHeader = Optional.ofNullable(httpServletRequest.getHeader(HttpHeaders.AUTHORIZATION)).orElse("");
+            String authHeader = httpServletRequest.getHeader(HttpHeaders.AUTHORIZATION);
             String token = Optional.of(authHeader)
                     .map(value -> StringUtils.removeStart(value, BEARER).trim())
                     .orElseThrow(() -> new BusinessException("Bad credentials, missing auth token"));
@@ -46,6 +46,7 @@ public class AuthenticationFilter extends AbstractAuthenticationProcessingFilter
             final Authentication auth = new UsernamePasswordAuthenticationToken(token, token);
             return getAuthenticationManager().authenticate(auth);
         } catch (BusinessException e) {
+            log.error("error", e);
             handlerExceptionResolver.resolveException(httpServletRequest, httpServletResponse, null, e);
         }
 
