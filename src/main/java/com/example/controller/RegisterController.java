@@ -25,7 +25,7 @@ public class RegisterController {
     @PostMapping("/register")
     @ResponseBody
     public Long register(@RequestBody @Valid UserModel user) {
-        log.info("register user {}", user);
+        log.info("register user {}", user.getUsername());
         return userDetailsService.register(user);
     }
 

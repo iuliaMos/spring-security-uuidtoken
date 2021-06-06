@@ -16,7 +16,7 @@ Request body are validated. </br>
 Each request that requires authentication should have 'Authorization' header. </br>
 No role is used to restrict data or REST endpoints. </br>
 It has a Docker file to run application in a docker container. </br>
-Tests are run on startup. </br>
+Tests are run on build. </br>
 
 ## Usage example
 
